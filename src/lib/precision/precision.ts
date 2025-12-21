@@ -1,0 +1,1 @@
+export const AMOUNT_PRECISION_SERVER = 6;

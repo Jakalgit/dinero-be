@@ -6,15 +6,17 @@ import {
   Model,
   Table,
 } from 'sequelize-typescript';
-import { WalletLogEnum } from '../../lib/wallet/enums/wallet-log.enum';
+import { WalletLogEnum } from '../enums/wallet-log.enum';
 import { Wallet } from './wallet.model';
-import { BonusEnum } from '../../lib/bonus/enums/bonus.enum';
+import { BonusEnum } from '../../bonus/enums/bonus.enum';
+import { TransferEnum } from '../enums/transfer.enum';
 
-interface WalletAuditLogCreationAttrs {
-  nativeAmount?: number;
+export interface WalletAuditLogCreationAttrs {
+  originalAmount?: number;
   description?: string;
   logType: WalletLogEnum;
   bonusType?: BonusEnum;
+  transferType?: TransferEnum;
   transactionId?: string;
   walletId: string;
 }
@@ -27,10 +29,10 @@ export class WalletAuditLog extends Model<
   @Column({
     type: DataType.BIGINT,
     allowNull: false,
-    field: 'native_amount',
+    field: 'original_amount',
     defaultValue: 0,
   })
-  nativeAmount: number;
+  originalAmount: number;
 
   @Column({ type: DataType.TEXT })
   description: string;
@@ -41,6 +43,13 @@ export class WalletAuditLog extends Model<
     field: 'log_type',
   })
   logType: WalletLogEnum;
+
+  @Column({
+    type: DataType.ENUM(...Object.values(TransferEnum)),
+    allowNull: false,
+    field: 'transfer_type',
+  })
+  transferType: TransferEnum;
 
   @Column({ type: DataType.TEXT, field: 'transaction_id' })
   transactionId: string;

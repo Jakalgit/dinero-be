@@ -4,18 +4,23 @@ import {
   DataType,
   Default,
   ForeignKey,
+  HasMany,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
 import { User } from '../../user/models/user.model';
+import { WalletAuditLog } from './wallet-audit-log.model';
+import { BlockchainAddress } from '../../payment/models/blockchain-address.model';
 
-interface WalletCreationAttrs {
+export interface WalletCreationAttrs {
   balance?: number;
   freezeBalance?: number;
   withdrawalLimit?: number;
   lastDepositAt?: number;
   lastWithdrawalAt?: number;
+  wager: number;
+  userId: string;
 }
 
 @Table({ tableName: 'wallets' })
@@ -53,6 +58,15 @@ export class Wallet extends Model<Wallet, WalletCreationAttrs> {
     defaultValue: null,
   })
   lastWithdrawalAt: number;
+
+  @Column({ type: DataType.BIGINT, allowNull: false })
+  wager: number;
+
+  @HasMany(() => WalletAuditLog)
+  walletAuditLogs: WalletAuditLog[];
+
+  @HasMany(() => BlockchainAddress)
+  blockchainAddresses: BlockchainAddress[];
 
   @BelongsTo(() => User)
   user: User;

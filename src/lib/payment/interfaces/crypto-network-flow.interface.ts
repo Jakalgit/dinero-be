@@ -1,4 +1,4 @@
-import { CryptoNetworkEnum } from "../../lib/payment/enums/crypto/crypto-network.enum";
+import { CryptoNetworkEnum } from '../enums/crypto/crypto-network.enum';
 
 export interface ICryptoNetworkFlow {
   isSupported(network: CryptoNetworkEnum): boolean;

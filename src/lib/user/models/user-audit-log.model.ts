@@ -9,6 +9,7 @@ import {
 import { User } from './user.model';
 
 interface UserAuditLogCreationAttrs {
+  userId: string;
   description: string;
 }
 

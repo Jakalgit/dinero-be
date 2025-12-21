@@ -9,16 +9,17 @@ import {
 import { AuthProviderEnum } from '../enums/auth-provider.enum';
 import { User } from '../../user/models/user.model';
 
-interface AuthIdentitiesCreationAttrs {
+interface AuthIdentityCreationAttrs {
   providerUserId: string;
   provider: AuthProviderEnum;
   passwordHash?: string;
+  userId: string;
 }
 
 @Table({ tableName: 'auth_identities' })
-export class AuthIdentities extends Model<
-  AuthIdentities,
-  AuthIdentitiesCreationAttrs
+export class AuthIdentity extends Model<
+  AuthIdentity,
+  AuthIdentityCreationAttrs
 > {
   @Column({ type: DataType.STRING, allowNull: false })
   providerUserId: string;

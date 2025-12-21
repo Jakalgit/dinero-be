@@ -1,6 +1,5 @@
 export enum ReferralStatusEnum {
-  OTHER = 'other',
-  CODE = 'code',
-  REFERRAL = 'referral',
-  GAME = 'game',
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  PENDING = 'pending',
 }

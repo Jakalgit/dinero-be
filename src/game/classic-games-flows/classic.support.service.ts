@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { GameService } from './game.service';
-import { WalletService } from '../wallet/wallet.service';
+import { GameService } from '../game.service';
+import { WalletService } from '../../wallet/wallet.service';
 import Decimal from 'decimal.js';
-import { mcToUnits, unitsToMC } from '../lib/conversion/units-to-ms';
+import { mcToUnits, unitsToMC } from '../../lib/conversion/units-to-ms';
 import { Transaction } from 'sequelize';
-import { WalletSupportService } from '../wallet/wallet.support.service';
+import { WalletSupportService } from '../../wallet/wallet.support.service';
 import { InjectModel } from '@nestjs/sequelize';
-import { GameAction } from '../lib/game/models/game-action.model';
+import { GameAction } from '../../lib/game/models/game-action.model';
 
 @Injectable()
 export class ClassicSupportService {
@@ -21,11 +21,11 @@ export class ClassicSupportService {
   async walletInfoWithCheck({
     userId,
     gameId,
-    stakeAmount,
+    decimalStakeAmount,
   }: {
     userId: string;
     gameId: string;
-    stakeAmount: Decimal;
+    decimalStakeAmount: Decimal;
   }) {
     const [walletInfo, gameInfo] = await Promise.all([
       // Поиск кошелька
@@ -34,10 +34,10 @@ export class ClassicSupportService {
       this.gameService.findGameSettings(gameId),
     ]);
 
-    if (stakeAmount.greaterThan(unitsToMC(walletInfo.balance))) {
+    if (decimalStakeAmount.greaterThan(walletInfo.balance)) {
       throw new BadRequestException('The bet amount exceeds the balance');
     } else if (gameInfo.maxStake) {
-      if (stakeAmount.greaterThan(unitsToMC(gameInfo.maxStake))) {
+      if (decimalStakeAmount.greaterThan(gameInfo.maxStake)) {
         throw new BadRequestException(
           'The bet amount exceeds the allowed value',
         );

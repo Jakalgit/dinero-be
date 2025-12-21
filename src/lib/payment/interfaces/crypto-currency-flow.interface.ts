@@ -1,8 +1,15 @@
-import { CryptoNetworkEnum } from '../../lib/payment/enums/crypto/crypto-network.enum';
-import { CryptoCurrencyEnum } from '../../lib/payment/enums/crypto/crypto-currency.enum';
+import { CryptoNetworkEnum } from '../enums/crypto/crypto-network.enum';
+import { CryptoCurrencyEnum } from '../enums/crypto/crypto-currency.enum';
 
 export interface ICryptoCurrencyFlow {
-  isSupported(network: CryptoNetworkEnum, token: CryptoCurrencyEnum): boolean;
+  isSupportedFlow(
+    network: CryptoNetworkEnum,
+    token: CryptoCurrencyEnum,
+  ): boolean;
+
+  isSupportedCurrency(token: CryptoCurrencyEnum): boolean;
+
+  getFlowData(): { currency: CryptoCurrencyEnum; network: CryptoNetworkEnum };
 
   handleWithdrawal(): Promise<void>;
 }

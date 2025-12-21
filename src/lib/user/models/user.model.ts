@@ -6,13 +6,15 @@ import {
   HasOne,
   Model,
   PrimaryKey,
+  Table,
 } from 'sequelize-typescript';
-import { UserStatusEnum } from '../../lib/user/enums/user-status.enum';
+import { UserStatusEnum } from '../enums/user-status.enum';
 import { Session } from '../../auth/models/session.model';
-import { AuthIdentities } from '../../auth/models/auth-identities.model';
+import { AuthIdentity } from '../../auth/models/auth-identity.model';
 import { Wallet } from '../../wallet/models/wallet.model';
+import { GameAction } from '../../game/models/game-action.model';
 
-interface UserCreationAttrs {
+export interface UserCreationAttrs {
   telegramId?: number;
   nickname: string;
   county: string;
@@ -21,6 +23,7 @@ interface UserCreationAttrs {
   freeSpins?: number;
 }
 
+@Table({ tableName: 'users' })
 export class User extends Model<User, UserCreationAttrs> {
   @PrimaryKey
   @Default(DataType.UUIDV4)
@@ -32,6 +35,7 @@ export class User extends Model<User, UserCreationAttrs> {
   @Column({
     type: DataType.BIGINT,
     field: 'telegram_id',
+    unique: true,
   })
   telegramId: number;
 
@@ -74,12 +78,23 @@ export class User extends Model<User, UserCreationAttrs> {
   })
   freeSpins: number;
 
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+    field: 'visible_nickname',
+  })
+  visibleNickname: boolean;
+
   @HasMany(() => Session)
   session: Session[];
 
-  @HasMany(() => AuthIdentities)
-  authIdentities: AuthIdentities[];
+  @HasMany(() => AuthIdentity)
+  authIdentities: AuthIdentity[];
 
   @HasOne(() => Wallet)
   wallet: Wallet;
+
+  @HasMany(() => GameAction)
+  gameActions: GameAction[];
 }

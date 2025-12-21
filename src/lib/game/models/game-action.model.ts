@@ -9,12 +9,14 @@ import {
 import { GameSetting } from './game-setting.model';
 import { User } from '../../user/models/user.model';
 
-interface GameActionCreationAttrs {
+export interface GameActionCreationAttrs {
   classic: boolean;
   amountDifference: number;
+  amountStake: number;
+  coefficient: string;
   note?: string;
-  gameSettingId: number;
-  userId: number;
+  gameSettingId: string;
+  userId: string;
 }
 
 @Table({ tableName: 'game_actions' })
@@ -29,6 +31,19 @@ export class GameAction extends Model<GameAction, GameActionCreationAttrs> {
   })
   amountDifference: number;
 
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: false,
+    field: 'amount_stake',
+  })
+  amountStake: number;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: false,
+  })
+  coefficient: string;
+
   @Column({ type: DataType.TEXT })
   note: string;
 
@@ -40,13 +55,13 @@ export class GameAction extends Model<GameAction, GameActionCreationAttrs> {
 
   @ForeignKey(() => GameSetting)
   @Column({
-    type: DataType.INTEGER,
+    type: DataType.STRING,
     allowNull: false,
     field: 'game_setting_id',
   })
-  gameSettingId: number;
+  gameSettingId: string;
 
   @ForeignKey(() => User)
-  @Column({ type: DataType.INTEGER, allowNull: false, field: 'user_id' })
-  userId: number;
+  @Column({ type: DataType.UUID, allowNull: false, field: 'user_id' })
+  userId: string;
 }
