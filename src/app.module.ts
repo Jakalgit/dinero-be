@@ -23,6 +23,8 @@ import { CryptoModule } from './crypto/crypto.module';
 import { BlockchainAddress } from "./lib/payment/models/blockchain-address.model";
 import { BlockchainTransaction } from "./lib/payment/models/blockchain-transaction.model";
 import { LiquidityTransfer } from "./lib/payment/models/liquidity-transfer.model";
+import { NativeHashModule } from './native-hash/native-hash.module';
+import { NativeHash } from "./lib/native-hash/models/native-hash.model";
 
 @Module({
   imports: [
@@ -55,6 +57,7 @@ import { LiquidityTransfer } from "./lib/payment/models/liquidity-transfer.model
           BlockchainAddress,
           BlockchainTransaction,
           LiquidityTransfer,
+          NativeHash,
         ],
         autoLoadModels: true,
       }),
@@ -66,6 +69,7 @@ import { LiquidityTransfer } from "./lib/payment/models/liquidity-transfer.model
     BonusModule,
     PaymentModule,
     CryptoModule,
+    NativeHashModule,
   ],
 })
 export class AppModule {}

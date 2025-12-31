@@ -6,43 +6,29 @@ import { ClassicGameIdEnum } from '../../../lib/game/enums/classic-game-id.enum'
 import { ClassicSupportService } from '../classic.support.service';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize';
-import { CryptoGeneratorService } from '../../crypto-generator/crypto.generator.service';
 import { AMOUNT_PRECISION_SERVER } from '../../../lib/precision/precision';
 import { IClassicGameFlow } from '../../../lib/game/interfaces/i-classic-game.flow';
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
 import ISOLATION_LEVELS = Transaction.ISOLATION_LEVELS;
-import { InjectModel } from '@nestjs/sequelize';
-import { GameSetting } from '../../../lib/game/models/game-setting.model';
+import { NativeHashService } from '../../../native-hash/native-hash.service';
 
 @Injectable()
 export class DiceService implements IClassicGameFlow, OnModuleInit {
   constructor(
-    @InjectModel(GameSetting)
-    private readonly gameSettingRepository: typeof GameSetting,
     private readonly classicSupportService: ClassicSupportService,
     private readonly sequelize: Sequelize,
-    private readonly cryptoGeneratorService: CryptoGeneratorService,
+    private readonly nativeHashService: NativeHashService,
   ) {}
 
   private GAME_ID: string = ClassicGameIdEnum.DICE;
 
   async onModuleInit(): Promise<void> {
-    const candidate = await this.gameSettingRepository.findOne({
-      where: { id: ClassicGameIdEnum.DICE },
-      raw: true,
-    });
-
-    if (!candidate) {
-      await this.gameSettingRepository.create({
-        id: ClassicGameIdEnum.DICE,
-        active: true,
-        name: 'Dice',
-      });
-    }
+    await this.classicSupportService.createGameSettingRecord(
+      this.GAME_ID,
+      'Dice',
+    );
   }
 
-  async play(dto: PlayDiceDto) {
+  private async play(dto: PlayDiceDto) {
     const { stakeAmount, userId, mode, userNumber } = dto;
 
     // Переводим пользовательский порог в Decimal
@@ -73,7 +59,10 @@ export class DiceService implements IClassicGameFlow, OnModuleInit {
     });
 
     try {
-      const decimalDiceResult = this.generateDiceResult();
+      const decimalDiceResult = await this.generateDiceResult({
+        userId,
+        transaction,
+      });
       const decimalBalanceDiff = this.calcGameResult({
         userNumber: decimalUserNumber,
         resultNumber: decimalDiceResult,
@@ -102,13 +91,24 @@ export class DiceService implements IClassicGameFlow, OnModuleInit {
     }
   }
 
-  private generateDiceResult() {
-    const genVal = this.cryptoGeneratorService.generateRandomNumber({
-      min: 0,
-      max: 10000,
+  private async generateDiceResult({
+    userId,
+    transaction,
+  }: {
+    userId: string;
+    transaction: Transaction;
+  }) {
+    const [bytes] = await this.nativeHashService.getBytesFromHash({
+      userId,
+      transaction,
     });
 
-    return new Decimal(genVal).dividedBy(100).toDecimalPlaces(2);
+    const result = this.nativeHashService.calcNumberFromBytes({
+      bytes,
+      multiplier: 10001,
+    });
+
+    return new Decimal(result).dividedBy(100).toDecimalPlaces(2);
   }
 
   private calcGameResult({
@@ -180,17 +180,10 @@ export class DiceService implements IClassicGameFlow, OnModuleInit {
   }
 
   async tryPlayGame(requestBody: any): Promise<any> {
-    const dto = plainToInstance(PlayDiceDto, requestBody);
-
-    const errors = await validate(dto, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    });
-
-    if (errors.length > 0) {
-      throw new BadRequestException(errors);
-    }
-
-    return this.play(dto);
+    return await this.classicSupportService.tryPlayGameTemplate(
+      requestBody,
+      PlayDiceDto,
+      this.play.bind(this),
+    );
   }
 }

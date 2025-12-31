@@ -7,6 +7,11 @@ import { Transaction } from 'sequelize';
 import { WalletSupportService } from '../../wallet/wallet.support.service';
 import { InjectModel } from '@nestjs/sequelize';
 import { GameAction } from '../../lib/game/models/game-action.model';
+import { GameSetting } from '../../lib/game/models/game-setting.model';
+import { ClassConstructor, plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { Wallet } from 'src/lib/wallet/models/wallet.model';
+import { NativeHashService } from '../../native-hash/native-hash.service';
 
 @Injectable()
 export class ClassicSupportService {
@@ -14,8 +19,11 @@ export class ClassicSupportService {
     private readonly gameService: GameService,
     private readonly walletService: WalletService,
     private readonly walletSupportService: WalletSupportService,
+    private readonly nativeHashService: NativeHashService,
     @InjectModel(GameAction)
     private readonly gameActionRepository: typeof GameAction,
+    @InjectModel(GameSetting)
+    private readonly gameSettingRepository: typeof GameSetting,
   ) {}
 
   async walletInfoWithCheck({
@@ -58,7 +66,7 @@ export class ClassicSupportService {
     gameId: string;
     transaction?: Transaction;
   }) {
-    let updatedWallet;
+    let updatedWallet: Wallet;
     let isWinner = false;
 
     if (balanceDiff.greaterThan(0)) {
@@ -86,22 +94,62 @@ export class ClassicSupportService {
       .replace(/(\.\d*?[1-9])0+$/, '$1')
       .replace(/\.0+$/, '');
 
-    await this.gameActionRepository.create(
-      {
-        classic: true,
-        amountDifference: mcToUnits(balanceDiff.toNumber()),
-        amountStake: mcToUnits(stakeAmount.toNumber()),
-        coefficient,
-        gameSettingId: gameId,
+    await Promise.all([
+      this.gameActionRepository.create(
+        {
+          classic: true,
+          amountDifference: mcToUnits(balanceDiff.toNumber()),
+          amountStake: mcToUnits(stakeAmount.toNumber()),
+          coefficient,
+          gameSettingId: gameId,
+          userId,
+        },
+        { transaction },
+      ),
+      this.nativeHashService.checkUpdatePair({
         userId,
-      },
-      { transaction },
-    );
+        transaction,
+      }),
+    ]);
 
     return {
       balance: unitsToMC(updatedWallet.balance),
       balanceDifference: balanceDiff.toNumber(),
       isWinner,
     };
+  }
+
+  async createGameSettingRecord(gameId: string, name: string) {
+    const candidate = await this.gameSettingRepository.findOne({
+      where: { id: gameId },
+      raw: true,
+    });
+
+    if (!candidate) {
+      await this.gameSettingRepository.create({
+        id: gameId,
+        active: true,
+        name,
+      });
+    }
+  }
+
+  async tryPlayGameTemplate<T extends object>(
+    requestBody: any,
+    cls: ClassConstructor<T>,
+    play: (dto: T) => Promise<any>,
+  ): Promise<any> {
+    const dto = plainToInstance(cls, requestBody);
+
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+
+    if (errors.length > 0) {
+      throw new BadRequestException(errors);
+    }
+
+    return play(dto);
   }
 }

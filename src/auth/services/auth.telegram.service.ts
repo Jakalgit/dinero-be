@@ -28,8 +28,9 @@ export class AuthTelegramService {
     let initData: TelegramInitData | undefined = undefined;
 
     try {
-      // TODO: На проде добавить валидацию
-      validate(dto.tgInitDataRaw, botToken);
+      if (process.env.NODE_ENV === 'production') {
+        validate(dto.tgInitDataRaw, botToken);
+      }
       initData = parse(dto.tgInitDataRaw);
     } catch {}
 

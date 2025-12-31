@@ -1,22 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import Decimal from 'decimal.js';
 
 @Injectable()
 export class CryptoGeneratorService {
   // Генерация случайного числа в диапазоне от min до max включительно
   generateRandomNumber({ min, max }: { min: number; max: number }): number {
-    const range = max - min + 1;
-    if (range <= 0) {
-      throw new Error('Invalid range: max must be greater than min.');
+    if (max < min) {
+      throw new Error('Invalid range: max must be >= min.');
     }
 
-    // Получаем случайный байт (безопасный) и масштабируем в нужный диапазон
-    const randomBuffer = randomBytes(4);
-    const randomValue = randomBuffer.readUInt32BE(0) / 0xffffffff;
+    const range = max - min + 1;
 
-    // Возвращаем число в диапазоне [min, max]
-    return new Decimal(randomValue).mul(range).add(new Decimal(min)).toNumber();
+    // Node.js crypto-safe
+    const random = randomBytes(4).readUInt32BE(0);
+
+    // Избегаем modulo bias
+    const maxUint32 = 0xffffffff;
+    const limit = maxUint32 - (maxUint32 % range);
+
+    let value = random;
+    while (value >= limit) {
+      value = randomBytes(4).readUInt32BE(0);
+    }
+
+    return min + (value % range);
   }
 
   // Генерация массива случайных чисел

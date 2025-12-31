@@ -5,6 +5,7 @@ import { UserAuditLog } from '../lib/user/models/user-audit-log.model';
 import { FindOptions, Transaction } from 'sequelize';
 import { WalletService } from '../wallet/wallet.service';
 import { Sequelize } from 'sequelize-typescript';
+import { NativeHashService } from '../native-hash/native-hash.service';
 
 @Injectable()
 export class UserService {
@@ -14,7 +15,7 @@ export class UserService {
     @InjectModel(UserAuditLog)
     private readonly userAuditLogRepository: typeof UserAuditLog,
     private readonly walletService: WalletService,
-    private readonly sequelize: Sequelize,
+    private readonly nativeHashService: NativeHashService,
   ) {}
 
   async findOrCreateTelegramUser({
@@ -32,15 +33,28 @@ export class UserService {
       transaction,
     });
 
+    const promises: Promise<any>[] = [];
+
     if (created) {
-      await this.userAuditLogRepository.create(
-        {
-          userId: user.dataValues.id,
-          description: 'Created new user through Telegram Web Application',
-        },
-        { transaction },
+      promises.push(
+        this.userAuditLogRepository.create(
+          {
+            userId: user.dataValues.id,
+            description: 'Created new user through Telegram Web Application',
+          },
+          { transaction },
+        ),
       );
     }
+
+    promises.push(
+      this.nativeHashService.generateHashPair({
+        userId: user.dataValues.id,
+        transaction,
+      }),
+    );
+
+    await Promise.all(promises);
 
     const wallet = await this.walletService.findOrCreateWalletForUser({
       userId: user.dataValues.id,

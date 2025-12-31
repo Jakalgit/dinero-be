@@ -5,9 +5,14 @@ import { WalletModule } from '../wallet/wallet.module';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { User } from '../lib/user/models/user.model';
 import { UserAuditLog } from '../lib/user/models/user-audit-log.model';
+import { NativeHashModule } from '../native-hash/native-hash.module';
 
 @Module({
-  imports: [SequelizeModule.forFeature([User, UserAuditLog]), WalletModule],
+  imports: [
+    SequelizeModule.forFeature([User, UserAuditLog]),
+    WalletModule,
+    NativeHashModule,
+  ],
   providers: [UserService],
   controllers: [UserController],
   exports: [UserService],

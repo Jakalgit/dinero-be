@@ -9,6 +9,8 @@ import Decimal from 'decimal.js';
 import { col, fn, Op } from 'sequelize';
 import { GameSetting } from '../lib/game/models/game-setting.model';
 import { unitsToMC } from '../lib/conversion/units-to-ms';
+import { RedisService } from '../redis/redis.service';
+import { GameRedisKeysEnum } from '../lib/game/enums/redis-keys.enum';
 
 @Injectable()
 export class GameService {
@@ -17,22 +19,43 @@ export class GameService {
     private readonly gameActionRepository: typeof GameAction,
     @InjectModel(GameSetting)
     private readonly gameSettingRepository: typeof GameSetting,
+    private readonly redisService: RedisService,
   ) {}
 
   async getGameSettings(id: string) {
-    const gameSettings = await this.gameSettingRepository.findOne({
-      where: { id },
-      raw: true,
-    });
+    const redisKey = `${GameRedisKeysEnum.GAME_SETTING}:${id}`;
 
-    if (!gameSettings) {
+    let gameSetting: GameSetting = null;
+
+    if (await this.redisService.exists(redisKey)) {
+      try {
+        const gameSettingRedis = await this.redisService.get(redisKey);
+
+        gameSetting = JSON.parse(gameSettingRedis);
+      } catch {}
+    } else {
+      gameSetting = await this.gameSettingRepository.findOne({
+        where: { id },
+        raw: true,
+      });
+
+      if (gameSetting) {
+        await this.redisService.set(
+          redisKey,
+          JSON.stringify(gameSetting),
+          3600,
+        );
+      }
+    }
+
+    if (!gameSetting) {
       throw new BadRequestException('No game settings found');
     }
 
     return {
-      ...gameSettings,
-      ...(gameSettings.maxStake && {
-        maxStake: unitsToMC(gameSettings.maxStake),
+      ...gameSetting,
+      ...(gameSetting.maxStake && {
+        maxStake: unitsToMC(gameSetting.maxStake),
       }),
     };
   }

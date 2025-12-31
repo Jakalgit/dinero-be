@@ -66,8 +66,6 @@ export class WalletService {
 
     await Promise.all(promises);
 
-    console.log(wallet.dataValues)
-
     return {
       ...wallet.dataValues,
       balance: unitsToMC(wallet.dataValues.balance),

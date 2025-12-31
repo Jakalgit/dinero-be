@@ -10,11 +10,15 @@ import { CryptoGeneratorService } from './crypto-generator/crypto.generator.serv
 import { ClassicSupportService } from './classic-games-flows/classic.support.service';
 import { GameClassicService } from './game.classic.service';
 import { WalletModule } from '../wallet/wallet.module';
+import { WheelService } from './classic-games-flows/wheel/wheel.service';
+import { NativeHashModule } from '../native-hash/native-hash.module';
+import { KenoService } from './classic-games-flows/keno/keno.service';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([GameAction, GameSetting]),
     WalletModule,
+    NativeHashModule,
   ],
   controllers: [GameController],
   providers: [
@@ -25,9 +29,11 @@ import { WalletModule } from '../wallet/wallet.module';
     {
       provide: CLASSIC_GAME_FLOW,
       useFactory: (...flows) => flows,
-      inject: [DiceService],
+      inject: [DiceService, WheelService, KenoService],
     },
     DiceService,
+    WheelService,
+    KenoService,
   ],
 })
 export class GameModule {}
