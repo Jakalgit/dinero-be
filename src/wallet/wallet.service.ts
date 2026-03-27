@@ -8,7 +8,7 @@ import { Wallet } from '../lib/wallet/models/wallet.model';
 import { WalletAuditLog } from '../lib/wallet/models/wallet-audit-log.model';
 import { Op, Transaction, WhereOptions } from 'sequelize';
 import { WalletLogEnum } from '../lib/wallet/enums/wallet-log.enum';
-import { unitsToMC } from '../lib/conversion/units-to-ms';
+import { mcToUnits, unitsToMC } from '../lib/conversion/units-to-ms';
 import { TransferEnum } from '../lib/wallet/enums/transfer.enum';
 import { PaymentService } from '../payment/payment.service';
 import { PaymentGettersService } from '../payment/payment.getters.service';
@@ -36,10 +36,17 @@ export class WalletService {
     const promises: Promise<any>[] = [];
 
     if (!wallet) {
+      let balance = 0;
+
+      if (process.env.NODE_ENV !== 'production') {
+        balance = mcToUnits(1000000);
+      }
+
       wallet = await this.walletRepository.create(
         {
           wager: 0,
           userId,
+          balance,
         },
         { transaction },
       );

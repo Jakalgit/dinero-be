@@ -1,6 +1,16 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { GameService } from './game.service';
 import { GameClassicService } from './game.classic.service';
+import { AuthorizedProfile } from '../lib/decorators/authorized-profile.decorator';
+import { TelegramAuthGuard } from '../auth/guards/telegram.auth.guard';
 
 @Controller('game')
 export class GameController {
@@ -9,24 +19,32 @@ export class GameController {
     private readonly gameClassicService: GameClassicService,
   ) {}
 
+  @UseGuards(TelegramAuthGuard)
   @Post('/classic/:gameId')
-  playClassicGame(@Body() body: any, @Param('gameId') gameId: string) {
-    return this.gameClassicService.playGame(body, gameId);
+  playClassicGame(
+    @AuthorizedProfile() userId: string,
+    @Body() body: any,
+    @Param('gameId') gameId: string,
+  ) {
+    return this.gameClassicService.playGame({ ...body, userId }, gameId);
   }
 
+  @UseGuards(TelegramAuthGuard)
   @Get('/user-info/:userId')
-  getGameActions(@Param('userId') userId: string) {
+  getGameActions(@AuthorizedProfile() userId: string) {
     return this.gameService.getGameActionsForUser(userId);
   }
 
-  @Get('/tab-info/games-count/:userId')
-  getGamesCountInfo(@Param('userId') userId: string) {
+  @UseGuards(TelegramAuthGuard)
+  @Get('/tab-info/games-count')
+  getGamesCountInfo(@AuthorizedProfile() userId: string) {
     return this.gameService.getGamesCountInfo(userId);
   }
 
-  @Get('/tab-info/actions/:userId')
+  @UseGuards(TelegramAuthGuard)
+  @Get('/tab-info/actions')
   getGameActionsInfo(
-    @Param('userId') userId: string,
+    @AuthorizedProfile() userId: string,
     @Query('page') page: number = 1,
     @Query('pageCount') pageCount: number = 6,
   ) {

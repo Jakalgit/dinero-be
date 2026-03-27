@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { Transaction } from 'sequelize';
 import { InjectModel } from '@nestjs/sequelize';
 import { Wallet } from '../lib/wallet/models/wallet.model';
-import { Sequelize } from 'sequelize-typescript';
 import { mcToUnits } from '../lib/conversion/units-to-ms';
 
 @Injectable()
@@ -57,13 +56,19 @@ export class WalletSupportService {
     action: '+' | '-';
     transaction?: Transaction;
   }) {
-    return await this.walletRepository.update(
-      { balance: Sequelize.literal(`balance ${action} ${amount}`) },
-      {
-        where: { userId },
-        transaction,
-        returning: true,
-      },
-    );
+    const wallet = await this.walletRepository.findOne({
+      where: { userId },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!wallet) throw new Error('Wallet not found');
+
+    wallet.balance =
+      action === '+'
+        ? Number(wallet.balance) + amount
+        : Number(wallet.balance) - amount;
+
+    return await wallet.save({ transaction });
   }
 }

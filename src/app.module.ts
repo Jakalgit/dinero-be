@@ -5,9 +5,10 @@ import { GameModule } from './game/game.module';
 import { WalletModule } from './wallet/wallet.module';
 import { BonusModule } from './bonus/bonus.module';
 import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import pg from 'pg';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
-import pg from 'pg';
 import { Wallet } from './lib/wallet/models/wallet.model';
 import { WalletAuditLog } from './lib/wallet/models/wallet-audit-log.model';
 import { AuthIdentity } from './lib/auth/models/auth-identity.model';
@@ -17,20 +18,58 @@ import { UserAuditLog } from './lib/user/models/user-audit-log.model';
 import { GameAction } from './lib/game/models/game-action.model';
 import { GameSetting } from './lib/game/models/game-setting.model';
 import { Referral } from './lib/bonus/models/referral.model';
-import { ReferralLevel } from "./lib/bonus/models/referral-level.model";
+import { ReferralLevel } from './lib/bonus/models/referral-level.model';
 import { PaymentModule } from './payment/payment.module';
 import { CryptoModule } from './crypto/crypto.module';
-import { BlockchainAddress } from "./lib/payment/models/blockchain-address.model";
-import { BlockchainTransaction } from "./lib/payment/models/blockchain-transaction.model";
-import { LiquidityTransfer } from "./lib/payment/models/liquidity-transfer.model";
+import { BlockchainAddress } from './lib/payment/models/blockchain-address.model';
+import { BlockchainTransaction } from './lib/payment/models/blockchain-transaction.model';
+import { LiquidityTransfer } from './lib/payment/models/liquidity-transfer.model';
 import { NativeHashModule } from './native-hash/native-hash.module';
-import { NativeHash } from "./lib/native-hash/models/native-hash.model";
+import { NativeHash } from './lib/native-hash/models/native-hash.model';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+import { LoggerModule } from 'nestjs-pino';
+import { OfficeUserModule } from './office-user/office-user.module';
+import { SystemConfigModule } from './system-config/system-config.module';
+import { Contacts } from './lib/system-config/models/contacts.model';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       envFilePath: [path.join(__dirname, '../.env')],
       isGlobal: true,
+    }),
+    PrometheusModule.register({
+      path: '/metrics',
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+        genReqId: (req) =>
+          req.headers['x-request-id'] ?? req.headers['x-trace-id'] ?? uuidv4(),
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'yyyy-mm-dd HH:MM:ss',
+            singleLine: true,
+            ignore: 'pid,hostname',
+          },
+        },
+        serializers: {
+          req(req) {
+            return {
+              method: req.method,
+              url: req.url,
+              traceId: req.id,
+            };
+          },
+          res(res) {
+            return {
+              statusCode: res.statusCode,
+            };
+          },
+        },
+      },
     }),
     SequelizeModule.forRootAsync({
       imports: [ConfigModule],
@@ -58,6 +97,7 @@ import { NativeHash } from "./lib/native-hash/models/native-hash.model";
           BlockchainTransaction,
           LiquidityTransfer,
           NativeHash,
+          Contacts,
         ],
         autoLoadModels: true,
       }),
@@ -70,6 +110,8 @@ import { NativeHash } from "./lib/native-hash/models/native-hash.model";
     PaymentModule,
     CryptoModule,
     NativeHashModule,
+    OfficeUserModule,
+    SystemConfigModule,
   ],
 })
 export class AppModule {}

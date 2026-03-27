@@ -10,6 +10,7 @@ import { AMOUNT_PRECISION_SERVER } from '../../../lib/precision/precision';
 import { IClassicGameFlow } from '../../../lib/game/interfaces/i-classic-game.flow';
 import ISOLATION_LEVELS = Transaction.ISOLATION_LEVELS;
 import { NativeHashService } from '../../../native-hash/native-hash.service';
+import { InjectPinoLogger, Logger } from 'nestjs-pino';
 
 @Injectable()
 export class DiceService implements IClassicGameFlow, OnModuleInit {
@@ -17,6 +18,8 @@ export class DiceService implements IClassicGameFlow, OnModuleInit {
     private readonly classicSupportService: ClassicSupportService,
     private readonly sequelize: Sequelize,
     private readonly nativeHashService: NativeHashService,
+    @InjectPinoLogger(DiceService.name)
+    private readonly logger: Logger,
   ) {}
 
   private GAME_ID: string = ClassicGameIdEnum.DICE;
@@ -55,7 +58,7 @@ export class DiceService implements IClassicGameFlow, OnModuleInit {
     });
 
     const transaction = await this.sequelize.transaction({
-      isolationLevel: ISOLATION_LEVELS.SERIALIZABLE,
+      isolationLevel: ISOLATION_LEVELS.REPEATABLE_READ,
     });
 
     try {
@@ -86,7 +89,7 @@ export class DiceService implements IClassicGameFlow, OnModuleInit {
       };
     } catch (error) {
       await transaction.rollback();
-      console.log(error);
+      this.logger.error({ dto }, `Failed play game ${this.GAME_ID}`);
       throw error;
     }
   }

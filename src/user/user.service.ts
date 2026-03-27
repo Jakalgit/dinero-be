@@ -4,7 +4,6 @@ import { User } from '../lib/user/models/user.model';
 import { UserAuditLog } from '../lib/user/models/user-audit-log.model';
 import { FindOptions, Transaction } from 'sequelize';
 import { WalletService } from '../wallet/wallet.service';
-import { Sequelize } from 'sequelize-typescript';
 import { NativeHashService } from '../native-hash/native-hash.service';
 
 @Injectable()

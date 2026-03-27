@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { TraceHeaderInterceptor } from './lib/interceptors/trace.interceptor';
 
 async function bootstrap() {
   try {
@@ -8,6 +9,7 @@ async function bootstrap() {
     const isProd = process.env.NODE_ENV === 'production';
 
     app.setGlobalPrefix('api');
+    app.useGlobalInterceptors(new TraceHeaderInterceptor());
 
     app.enableCors({
       origin: isProd ? [] : '*',

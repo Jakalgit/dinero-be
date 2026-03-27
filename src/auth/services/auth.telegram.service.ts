@@ -10,6 +10,7 @@ import { parse, validate } from '@telegram-apps/init-data-node';
 import { TelegramInitData } from '../../lib/auth/utils/telegram.utils';
 import { Transaction } from 'sequelize';
 import ISOLATION_LEVELS = Transaction.ISOLATION_LEVELS;
+import { RedisService } from '../../redis/redis.service';
 
 @Injectable()
 export class AuthTelegramService {
@@ -19,7 +20,7 @@ export class AuthTelegramService {
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly sequelize: Sequelize,
-    // private readonly redisService: RedisService,
+    private readonly redisService: RedisService,
   ) {}
 
   async handleMainAuthRequest(dto: TelegramAuthDto) {
@@ -66,7 +67,14 @@ export class AuthTelegramService {
 
       await transaction.commit();
 
-      return { ...userResponse, initData };
+      const { balance, created } = userResponse;
+
+      await this.redisService.set(
+        `userId:${initData.user.id}`,
+        userResponse.userId,
+        3600,
+      );
+      return { balance, created, initData };
     } catch (e) {
       console.error(e);
       await transaction.rollback();

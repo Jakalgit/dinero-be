@@ -1,29 +1,28 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { IClassicGameFlow } from '../../../lib/game/interfaces/i-classic-game.flow';
-import { ClassicGameIdEnum } from '../../../lib/game/enums/classic-game-id.enum';
 import { ClassicSupportService } from '../classic.support.service';
-import { PlayWheelDto } from './dto/play-wheel';
-import Decimal from 'decimal.js';
-import { Sequelize } from 'sequelize-typescript';
-import { Transaction } from 'sequelize';
-import ISOLATION_LEVELS = Transaction.ISOLATION_LEVELS;
-import { WheelRiskEnum } from '../../../lib/game/enums/wheel/wheel-risk.enum';
-import { WheelValues } from '../../../lib/game/constants/wheel-values';
-import { AMOUNT_PRECISION_SERVER } from '../../../lib/precision/precision';
 import { NativeHashService } from '../../../native-hash/native-hash.service';
+import { Sequelize } from 'sequelize-typescript';
+import { ClassicGameIdEnum } from '../../../lib/game/enums/classic-game-id.enum';
+import { PlayLimboDto } from './dto/play-limbo.dto';
+import { PlayKenoDto } from '../keno/dto/play-keno.dto';
+import Decimal from 'decimal.js';
+import { Transaction } from 'sequelize';
 import { InjectPinoLogger, Logger } from 'nestjs-pino';
+import ISOLATION_LEVELS = Transaction.ISOLATION_LEVELS;
+import { AMOUNT_PRECISION_SERVER } from '../../../lib/precision/precision';
 
 @Injectable()
-export class WheelService implements IClassicGameFlow, OnModuleInit {
+export class LimboService implements IClassicGameFlow, OnModuleInit {
   constructor(
     private readonly classicSupportService: ClassicSupportService,
     private readonly nativeHashService: NativeHashService,
     private readonly sequelize: Sequelize,
-    @InjectPinoLogger(WheelService.name)
+    @InjectPinoLogger(LimboService.name)
     private readonly logger: Logger,
   ) {}
 
-  private GAME_ID: string = ClassicGameIdEnum.WHEEL;
+  private readonly GAME_ID = ClassicGameIdEnum.LIMBO;
 
   isSupport(gameId: string): boolean {
     return gameId === this.GAME_ID;
@@ -32,12 +31,12 @@ export class WheelService implements IClassicGameFlow, OnModuleInit {
   async onModuleInit(): Promise<void> {
     await this.classicSupportService.createGameSettingRecord(
       this.GAME_ID,
-      'Wheel',
+      'Limbo',
     );
   }
 
-  private async play(dto: PlayWheelDto) {
-    const { userId, stakeAmount, numberOfSectors, risk } = dto;
+  private async play(dto: PlayLimboDto) {
+    const { userId, userCoefficient, stakeAmount } = dto;
 
     // Переводим сумму ставки в Decimal
     const decimalStakeAmount = new Decimal(stakeAmount);
@@ -50,35 +49,37 @@ export class WheelService implements IClassicGameFlow, OnModuleInit {
     });
 
     const transaction = await this.sequelize.transaction({
-      isolationLevel: ISOLATION_LEVELS.SERIALIZABLE,
+      isolationLevel: ISOLATION_LEVELS.REPEATABLE_READ,
     });
 
     try {
-      const wheelResultSector = await this.generateWheelResult({
-        numberOfSectors,
+      // Генерируем результат
+      const decimalLimboResult = await this.generateLimboValue({
         userId,
         transaction,
       });
+      // Считаем изменения баланса после игры
       const decimalBalanceDiff = this.calcGameResult({
-        wheelResultSector,
-        numberOfSectors,
-        risk,
+        userNumber: new Decimal(userCoefficient),
+        resultNumber: decimalLimboResult,
         stakeAmount: decimalStakeAmount,
       });
 
+      // Сохраняем результат игры
       const result = await this.classicSupportService.saveGameResult({
         userId,
         stakeAmount: decimalStakeAmount,
         balanceDiff: decimalBalanceDiff,
-        gameId: ClassicGameIdEnum.WHEEL,
+        gameId: ClassicGameIdEnum.LIMBO,
         transaction,
       });
 
       await transaction.commit();
 
+      // Возвращаем данные клиенту
       return {
         ...result,
-        result: wheelResultSector,
+        result: decimalLimboResult.toNumber(),
       };
     } catch (error) {
       await transaction.rollback();
@@ -86,56 +87,57 @@ export class WheelService implements IClassicGameFlow, OnModuleInit {
     }
   }
 
-  // Генерация случайного числа (номер сектора)
-  private async generateWheelResult({
-    numberOfSectors,
+  private calcGameResult({
+    userNumber,
+    resultNumber,
+    stakeAmount,
+  }: {
+    userNumber: Decimal;
+    resultNumber: Decimal;
+    stakeAmount: Decimal;
+  }) {
+    if (resultNumber.greaterThanOrEqualTo(userNumber)) {
+      return stakeAmount
+        .mul(new Decimal(userNumber).minus(1))
+        .toDecimalPlaces(AMOUNT_PRECISION_SERVER, Decimal.ROUND_DOWN);
+    } else {
+      return stakeAmount
+        .mul(-1)
+        .toDecimalPlaces(AMOUNT_PRECISION_SERVER, Decimal.ROUND_DOWN);
+    }
+  }
+
+  private async generateLimboValue({
+    k = 0.99,
     userId,
     transaction,
   }: {
-    numberOfSectors: number;
+    k?: number;
     userId: string;
     transaction: Transaction;
-  }): Promise<number> {
+  }) {
+    // Получаем байты
     const [bytes] = await this.nativeHashService.getBytesFromHash({
       userId,
       transaction,
     });
 
-    return this.nativeHashService.calcNumberFromBytes({
+    // Получаем игровое число
+    const result = this.nativeHashService.calcNumberFromBytes({
       bytes,
-      multiplier: numberOfSectors,
+      multiplier: 16777216,
     });
+
+    return new Decimal(16777216)
+      .dividedBy(new Decimal(result).plus(1))
+      .mul(k)
+      .toDecimalPlaces(2);
   }
 
-  // Расчёт изменения баланса
-  private calcGameResult({
-    wheelResultSector,
-    numberOfSectors,
-    risk,
-    stakeAmount,
-  }: {
-    wheelResultSector: number;
-    numberOfSectors: number;
-    risk: WheelRiskEnum;
-    stakeAmount: Decimal;
-  }) {
-    // Получаем массив коэффициентов в колесе
-    const values: number[] = WheelValues[risk][numberOfSectors.toString()].map(
-      (el: number) => WheelValues.codes[el],
-    );
-
-    const coefficient = values[wheelResultSector];
-
-    // Умножаем коэффициент на ставку и возвращаем результат
-    return stakeAmount
-      .mul(new Decimal(coefficient).minus(1))
-      .toDecimalPlaces(AMOUNT_PRECISION_SERVER);
-  }
-
-  async tryPlayGame(requestBody: any): Promise<any> {
+  async tryPlayGame(requestBody: any) {
     return await this.classicSupportService.tryPlayGameTemplate(
       requestBody,
-      PlayWheelDto,
+      PlayKenoDto,
       this.play.bind(this),
     );
   }

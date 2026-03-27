@@ -4,8 +4,8 @@ import { NativeHash } from '../lib/native-hash/models/native-hash.model';
 import { Transaction } from 'sequelize';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import { Sequelize } from 'sequelize-typescript';
 import Decimal from 'decimal.js';
+import { InjectPinoLogger, Logger } from 'nestjs-pino';
 
 @Injectable()
 export class NativeHashService {
@@ -13,6 +13,8 @@ export class NativeHashService {
     @InjectModel(NativeHash)
     private readonly nativeHashRepository: typeof NativeHash,
     private readonly configService: ConfigService,
+    @InjectPinoLogger(NativeHashService.name)
+    private readonly logger: Logger,
   ) {}
 
   async generateHashPair({
@@ -80,36 +82,17 @@ export class NativeHashService {
   }) {
     const hashPair = await this.nativeHashRepository.findOne({
       where: { userId },
-      raw: true,
       transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (!hashPair) {
-      throw new InternalServerErrorException('Server error');
+      this.logger.error({ userId }, 'Hash pair not found');
+      throw new InternalServerErrorException('Hash pair not found');
     }
 
-    const MAX_HASH_PAIR_GAMES = Number(
-      this.configService.get<string>('MAX_HASH_PAIR_GAMES') || 1000,
-    );
-
-    if (Number(hashPair.count) >= MAX_HASH_PAIR_GAMES) {
-      await this.nativeHashRepository.destroy({
-        where: { userId },
-        transaction,
-      });
-
-      await this.generateHashPair({ userId, transaction });
-    } else {
-      // TODO: Добавить обновление хеша
-      const [_, [row]] = await this.nativeHashRepository.update(
-        { count: Sequelize.literal('count + 1') },
-        {
-          where: { userId },
-          returning: true,
-          transaction,
-        },
-      );
-    }
+    hashPair.count = Number(hashPair.count) + 1;
+    await hashPair.save({ transaction });
   }
 
   calcNumberFromBytes({

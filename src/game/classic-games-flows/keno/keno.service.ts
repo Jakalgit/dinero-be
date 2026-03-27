@@ -11,6 +11,7 @@ import { NativeHashService } from '../../../native-hash/native-hash.service';
 import { KenoRiskEnum } from '../../../lib/game/enums/keno/keno-risk.enum';
 import { KenoValues } from '../../../lib/game/constants/keno-values';
 import { AMOUNT_PRECISION_SERVER } from '../../../lib/precision/precision';
+import { InjectPinoLogger, Logger } from 'nestjs-pino';
 
 @Injectable()
 export class KenoService implements IClassicGameFlow, OnModuleInit {
@@ -18,6 +19,8 @@ export class KenoService implements IClassicGameFlow, OnModuleInit {
     private readonly classicSupportService: ClassicSupportService,
     private readonly nativeHashService: NativeHashService,
     private readonly sequelize: Sequelize,
+    @InjectPinoLogger(KenoService.name)
+    private readonly logger: Logger,
   ) {}
 
   private readonly GAME_ID = ClassicGameIdEnum.KENO;
@@ -47,7 +50,7 @@ export class KenoService implements IClassicGameFlow, OnModuleInit {
     });
 
     const transaction = await this.sequelize.transaction({
-      isolationLevel: ISOLATION_LEVELS.SERIALIZABLE,
+      isolationLevel: ISOLATION_LEVELS.REPEATABLE_READ,
     });
 
     try {
@@ -75,8 +78,7 @@ export class KenoService implements IClassicGameFlow, OnModuleInit {
       };
     } catch (error) {
       await transaction.rollback();
-      console.log(error);
-      throw error;
+      this.logger.error({ dto, error }, `Failed play game ${this.GAME_ID}`);
     }
   }
 

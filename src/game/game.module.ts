@@ -13,12 +13,14 @@ import { WalletModule } from '../wallet/wallet.module';
 import { WheelService } from './classic-games-flows/wheel/wheel.service';
 import { NativeHashModule } from '../native-hash/native-hash.module';
 import { KenoService } from './classic-games-flows/keno/keno.service';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([GameAction, GameSetting]),
     WalletModule,
     NativeHashModule,
+    UserModule,
   ],
   controllers: [GameController],
   providers: [

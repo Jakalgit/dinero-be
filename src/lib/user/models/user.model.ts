@@ -13,7 +13,7 @@ import { Session } from '../../auth/models/session.model';
 import { AuthIdentity } from '../../auth/models/auth-identity.model';
 import { Wallet } from '../../wallet/models/wallet.model';
 import { GameAction } from '../../game/models/game-action.model';
-import { NativeHash } from "../../native-hash/models/native-hash.model";
+import { NativeHash } from '../../native-hash/models/native-hash.model';
 
 export interface UserCreationAttrs {
   telegramId?: number;

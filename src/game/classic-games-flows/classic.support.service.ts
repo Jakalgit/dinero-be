@@ -70,20 +70,18 @@ export class ClassicSupportService {
     let isWinner = false;
 
     if (balanceDiff.greaterThan(0)) {
-      const [_, w] = await this.walletSupportService.incrementBalance({
+      updatedWallet = await this.walletSupportService.incrementBalance({
         userId,
         amountMc: balanceDiff.toNumber(),
         transaction,
       });
       isWinner = true;
-      updatedWallet = w[0];
     } else {
-      const [_, w] = await this.walletSupportService.decrementBalance({
+      updatedWallet = await this.walletSupportService.decrementBalance({
         userId,
         amountMc: balanceDiff.mul(-1).toNumber(),
         transaction,
       });
-      updatedWallet = w[0];
     }
 
     const coefficient = new Decimal(stakeAmount)
@@ -147,7 +145,7 @@ export class ClassicSupportService {
     });
 
     if (errors.length > 0) {
-      throw new BadRequestException(errors);
+      throw new BadRequestException(errors[0]);
     }
 
     return play(dto);

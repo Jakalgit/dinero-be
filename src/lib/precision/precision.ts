@@ -1,1 +1,1 @@
-export const AMOUNT_PRECISION_SERVER = 6;
+export const AMOUNT_PRECISION_SERVER = 2;
